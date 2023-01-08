@@ -10,6 +10,10 @@ import torchvision
 from constants import BEST_MODEL_DIR_NAME
 
 
+def discounting_avg_fn(l_avg, l_batch, n_th):
+    return l_avg + (l_batch - l_avg) / n_th
+
+
 def show_image(img):
     img = img / 2 + 0.5  # Unnormalize.
     np_img = img.numpy()
@@ -104,7 +108,7 @@ def load_ckp(model_dir_path, model, optimizer, checkpoint_fpath_override=None):
     return model, optimizer, epoch, val_metrics, train_metrics
 
 
-def define_mode_name(epoch, config, train_metrics, val_metrics=None):
+def define_model_name(epoch, config, train_metrics, val_metrics=None):
     model_name = f"{config['model_type']}"
 
     if val_metrics is None:
@@ -126,6 +130,18 @@ def define_mode_name(epoch, config, train_metrics, val_metrics=None):
     model_name = "".join([model_name, loss_str,
                           train_hparam, opt_str, opt_hparams])
     return model_name
+
+
+def define_run_name(config):
+    model_name = f"{config['model_type']}"
+
+    train_hparam = f"Batch_s{config['batch_size']}"
+    opt_str = f"{config['optimizer']['name']}"
+    opt_hparams = ''.join([f"{k}{v}" for k, v in
+                           config['optimizer']['params'].items()])
+
+    run_name = "".join([model_name, train_hparam, opt_str, opt_hparams])
+    return run_name
 
 
 if __name__ == '__main__':

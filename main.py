@@ -1,31 +1,36 @@
+print("Start of the main.py file")
+
 import os
-import time
 from pathlib import Path
 
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.optim as optim
 import torch.nn.functional as F
-import wandb
-from torch.utils.data import DataLoader
-import matplotlib.pyplot as plt
+# import wandb
+from torch import nn
 
-from data import get_dataset, get_dataset_info, DatasetName
-from sharpening import sharpening_loss_scaler, sharpening_loss
 from constants import MODEL_PATH, BEST_MODEL_DIR_NAME
-from models import ModelName, MiniFCNet, BasicCNN1Net, BasicCNN2Net, VGG
-from utils import save_ckp, load_ckp, define_mode_name, check_if_best_model
-
-# wandb.init(project="cl-disco", entity="valtersjz", reinit=True)
+from data import DatasetName, DataMaker
+from models import ModelName, MODEL_MIN_DIMS, get_model
+from optimizers import get_optimizer
+from sharpening import sharpening_loss_scaler, sharpening_loss
+from state import State
+from utils import load_ckp, check_if_best_model, define_model_name, save_ckp, discounting_avg_fn, define_run_name
 from visualize import plot_activation_histogram
 
+# wandb.init(project="wandb-test2", entity="cl-disco", reinit=True)
+# wandb.init(project="my-awesome-project")
+
+
+TRAIN_MODEL = True
+LOAD_CHECKPOINT = True
+
 config = {
-    "dataset": DatasetName.FashionMNIST,
-    "batch_size": 128,
-    "epochs": 3,
+    "dataset": DatasetName.MNIST,
+    "batch_size": 64,
+    "epochs": 2,
     "model_type": ModelName.MiniFCNet,
-    "run_name": "run_delete_me_too_sharp",
+    "run_name": "sharp",
     "optimizer": {
         "name": "SGD",
         "params": {
@@ -35,7 +40,9 @@ config = {
         }
     },
     "use_sharpening": True,
-    "max_sharpening_k": 0.2
+    "max_sharpening_k": 0.1,
+    "TRAIN_MODEL": TRAIN_MODEL,
+    "LOAD_CHECKPOINT": "LOAD_CHECKPOINT",
     # "optimizer": {
     #     "name": "ADAM",
     #     "params": {
@@ -43,8 +50,7 @@ config = {
     # }
 }
 
-TRAIN_MODEL = True
-LOAD_CHECKPOINT = True
+# wandb.init(project="wandb-test", entity="cl-disco", config=config, name=define_run_name(config))
 
 
 def main():
@@ -53,79 +59,70 @@ def main():
     print(f"device: {device}")
     print(f"dataset: {config['dataset']}, model: {config['model_type']}")
 
-    train_set, val_set, test_set = get_dataset(dataset=config["dataset"],
-                                               validation_set_pc=0.1)
-    image_dim, n_outputs, classes = get_dataset_info(dataset=config["dataset"])
+    # Data.
+    model_min_dims = MODEL_MIN_DIMS[config["model_type"]]
+    data_maker = DataMaker(config["dataset"], model_min_dims)
+    image_dim = data_maker.get_img_dims()
+    n_outputs = data_maker.get_num_outputs()
+    classes = data_maker.get_classes()
 
-    train_loader = DataLoader(train_set, batch_size=config["batch_size"],
-                              shuffle=True, num_workers=3)
-    val_loader = DataLoader(val_set, batch_size=config["batch_size"],
-                            shuffle=True, num_workers=3)
-    test_loader = DataLoader(test_set, batch_size=config["batch_size"],
-                             shuffle=False, num_workers=3)
+    train_loader, val_loader, test_loader = data_maker.make_loaders(
+        config["batch_size"])
 
     # Model.
-    model_type = config["model_type"]
-    if model_type == "MiniFCNet":
-        net = MiniFCNet(image_dim=image_dim, n_outputs=n_outputs)
-    elif model_type == "BasicCNN2Net":
-        net = BasicCNN2Net(image_dim, n_outputs)
-    elif model_type == "BasicCNN1Net":
-        net = BasicCNN1Net(image_dim, n_outputs)
-    elif model_type == "VGG11":
-        net = VGG("VGG11", image_dim, n_outputs=n_outputs)
-    else:
-        raise Exception(f"Model {model_type} not recognized.")
-
+    net = get_model(config["model_type"],
+                    image_dim=image_dim, n_outputs=n_outputs)
+    # wandb.watch(net)
     net.to(device)
-    model_dir_path = MODEL_PATH / Path(config["dataset"]) / Path(config["model_type"]) / config["run_name"]
 
+    model_dir_path = MODEL_PATH / Path(config["dataset"]) / Path(
+        config["model_type"]) / config["run_name"]
+
+    # Optimizer
     criterion = nn.CrossEntropyLoss()
-
-    if config["optimizer"]["name"] == "SGD":
-        optimizer = optim.SGD(net.parameters(), **config["optimizer"]["params"])
-    elif config["optimizer"]["name"] == "ADAM":
-        optimizer = optim.Adam(net.parameters(), **config["optimizer"]["params"])
-    else:
-        raise Exception(f"Optimizer {config['optimizer']['name']} not recognized.")
-
+    optimizer = get_optimizer(
+        config["optimizer"]["name"],
+        net.parameters(),
+        **config["optimizer"]["params"]
+    )
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, T_max=config["epochs"])
+
     # add warmup, cool down, cyclic cosine scheduler, noise?, random restart?, ..?
-    epoch_start = 0
-    valid_obj_l_min = np.inf
+    state = State()
 
     if LOAD_CHECKPOINT:
         if os.path.exists(model_dir_path / BEST_MODEL_DIR_NAME):
             model, optimizer, epoch_start, val_metrics, train_metrics = load_ckp(
                 model_dir_path, net, optimizer)
 
+            state.update_state(epoch_start=epoch_start)
             if val_metrics is not None:
-                valid_obj_l_min = val_metrics["obj_loss_ep_avg"]
+                state.update_state(valid_obj_l_min=val_metrics["obj_loss_ep_avg"])
         else:
             print("No checkpoint exists, proceeding to train a new model.")
 
     if TRAIN_MODEL:
-        train(net, device, train_loader, optimizer, criterion, scheduler,
-              model_dir_path, val_loader, epoch_start, valid_obj_l_min)
+        train(net, device, train_loader, val_loader, optimizer, criterion, scheduler,
+              model_dir_path, state)
 
-    test(net, device, test_loader, classes)
+    test(net, device, test_loader, classes, criterion)
 
 
-def train(net, device, train_loader: DataLoader, optimizer: torch.optim.Optimizer,
-          criterion, scheduler, model_ckp_dir_path, val_loader=None, epoch_start=0,
-          valid_obj_l_min_input=np.inf):
-    valid_obj_l_min = valid_obj_l_min_input
+def train(net, device, train_loader, val_loader, optimizer,
+          criterion, scheduler, model_ckp_dir_path, state):
+    start_epoch = state.epoch_start
+    stop_epoch = start_epoch + config["epochs"]
 
-    for epoch in range(epoch_start, epoch_start + config["epochs"]):
-        train_metrics = train_epoch(epoch, net, device, train_loader,
-                                    optimizer, criterion, epoch_start=epoch_start)
+    for epoch in range(start_epoch, stop_epoch):
+        train_metrics = train_one_epoch(epoch, net, device, train_loader,
+                                        optimizer, criterion, start_epoch)
         if val_loader is not None:
             val_metrics = validate(net, device, val_loader, criterion)
         else:
             val_metrics = None
 
-        state = {
+        save_state = {
             'epoch': epoch + 1,
             'val_metrics': val_metrics,
             'train_metrics': train_metrics,
@@ -133,18 +130,21 @@ def train(net, device, train_loader: DataLoader, optimizer: torch.optim.Optimize
             'optimizer': optimizer.state_dict(),
         }
 
-        is_best = check_if_best_model(val_metrics, train_metrics, valid_obj_l_min)
-        model_name = define_mode_name(epoch, config, train_metrics, val_metrics)
-        save_ckp(state, is_best, model_ckp_dir_path, model_name, save_only_if_best=True)
+        is_best = check_if_best_model(val_metrics, train_metrics,
+                                      state.valid_obj_l_min)
+        model_name = define_model_name(epoch, config,
+                                       train_metrics, val_metrics)
+        save_ckp(save_state, is_best, model_ckp_dir_path,
+                 model_name, save_only_if_best=True)
 
         scheduler.step()
 
         if val_loader is not None:
-            valid_obj_l_min = val_metrics["obj_loss_ep_avg"]
+            state.update_state(valid_obj_l_min=val_metrics["obj_loss_ep_avg"])
 
 
-def train_epoch(epoch, net, device, train_loader: DataLoader,
-                optimizer: torch.optim.Optimizer, criterion, epoch_start=0):
+def train_one_epoch(epoch, net, device, train_loader,
+                    optimizer, criterion, start_epoch):
     log_running_loss = 0.0
     metrics_train_epoch = {"obj_loss_ep_avg": 0, "sharp_loss_ep_avg": 0}
 
@@ -156,32 +156,35 @@ def train_epoch(epoch, net, device, train_loader: DataLoader,
         outputs, activations_ls = net(inputs)
 
         # Loss
-        objective_loss = criterion(outputs, labels)
-
         batches_in_loader = len(train_loader)
-        if config["use_sharpening"]:
-            sharpening_scaler = sharpening_loss_scaler(
-                epoch - epoch_start, batch_idx, batches_in_loader,
-                config["batch_size"], config["epochs"],
-                max_coefficient=config["max_sharpening_k"]
-            )
-        else:
+        sharpening_scaler = sharpening_loss_scaler(
+            epoch - start_epoch, batch_idx, batches_in_loader,
+            config["batch_size"], config["epochs"],
+            max_coefficient=config["max_sharpening_k"]
+        )
+        if not config["use_sharpening"]:
             sharpening_scaler = 0
 
+        objective_loss = criterion(outputs, labels)
         sharp_loss = sharpening_loss(activations_ls, device)
         loss = objective_loss + sharpening_scaler * sharp_loss
+
+        # wandb.log({
+        #     "loss_ob": objective_loss,
+        #     "loss_sharp": sharp_loss,
+        #     "sharpening_scaler": sharpening_scaler,
+        #     "loss": loss
+        # })
+        # wandb.log({"loss": objective_loss})
 
         loss.backward()
         optimizer.step()
 
-        def discounting_avg_fn(l_avg, l_batch, n_th):
-            return l_avg + (l_batch - l_avg) / n_th
-
         nth_batch = batch_idx + 1
-        metrics_train_epoch["obj_loss_ep_avg"] = discounting_avg_fn(metrics_train_epoch["obj_loss_ep_avg"],
-                                                                    objective_loss, nth_batch)
-        metrics_train_epoch["sharp_loss_ep_avg"] = discounting_avg_fn(metrics_train_epoch["sharp_loss_ep_avg"],
-                                                                      sharp_loss, nth_batch)
+        metrics_train_epoch["obj_loss_ep_avg"] = discounting_avg_fn(
+            metrics_train_epoch["obj_loss_ep_avg"], objective_loss, nth_batch)
+        metrics_train_epoch["sharp_loss_ep_avg"] = discounting_avg_fn(
+            metrics_train_epoch["sharp_loss_ep_avg"], sharp_loss, nth_batch)
 
         # log running loss
         log_running_loss += loss
@@ -227,22 +230,34 @@ def validate(net, device, val_loader, criterion):
 
         metrics_val["obj_loss_ep_avg"] = objective_loss
         metrics_val["sharp_loss_ep_avg"] = sharp_loss
-        metrics_val["accuracy"] = correct / total
+        metrics_val["accuracy"] = val_accuracy = correct / total
+
+        # wandb.log({
+        #     "val_loss_ob": objective_loss,
+        #     "val_loss_sharp": sharp_loss,
+        #     "val_accuracy": val_accuracy
+        # })
 
     print(f"val: {correct} / {total} = {correct / total : 0.3f}")
     return metrics_val
 
 
-def test(net, device, test_loader: DataLoader, classes):
+def test(net, device, test_loader, classes, criterion):
     net.eval()
     # Test
     correct_pred = {classname: 0 for classname in classes}
     total_pred = {classname: 0 for classname in classes}
 
+    all_obj_losses = []
+    all_sharp_losses = []
     with torch.no_grad():
         for data in test_loader:
             images, labels = data[0].to(device), data[1].to(device)
-            outputs, _ = net(images)
+            outputs, activations_ls = net(images)
+
+            all_obj_losses.append(criterion(outputs, labels))
+            all_sharp_losses.append(sharpening_loss(activations_ls, device))
+
             _, predictions = torch.max(outputs, 1)
             # collect the correct predictions for each class
             for label, prediction in zip(labels, predictions):
@@ -257,9 +272,25 @@ def test(net, device, test_loader: DataLoader, classes):
 
     total = sum([count for count in total_pred.values()])
     correct = sum([count for count in correct_pred.values()])
-    print(f'Accuracy of the network on the {total} test images: {100 * correct / total: .3f} %')
+    test_accuracy = correct / total
+    print(f'Accuracy of the network on the {total} test images: {100 * test_accuracy: .3f} %')
+
+    batches_in_loader = len(test_loader)
+    sample_weights = torch.ones(batches_in_loader)
+    sample_weights[-1] = batches_in_loader * config["batch_size"] % config["batch_size"]
+    sample_weight_norm_l1 = F.normalize(sample_weights, dim=0, p=1)
+
+    objective_loss = torch.dot(torch.Tensor(all_obj_losses), sample_weight_norm_l1).item()
+    sharp_loss = torch.dot(torch.Tensor(all_sharp_losses), sample_weight_norm_l1).item()
+
+    # wandb.log({
+    #     "test_accuracy": test_accuracy,
+    #     "test_loss_ob": objective_loss,
+    #     "test_loss_sharp": sharp_loss
+    # })
 
 
 if __name__ == '__main__':
     torch.set_printoptions(linewidth=200)
     main()
+    wandb.finish()

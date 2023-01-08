@@ -9,10 +9,11 @@ from models.utils import forward_module_list, calc_feature_map_size
 
 class MiniFCNet(nn.Module):
     model_type = "MiniFCNet"
+    min_dims = (1, 1, 1)
+    dims = (1, 28, 28)
 
-    def __init__(self, image_dim, n_outputs, name="fc_net"):
+    def __init__(self, image_dim, n_outputs):
         super().__init__()
-        self.filepath = Path(f"{name}.pth")
         input_len = image_dim[0] * image_dim[1] * image_dim[2]
 
         self.layers = nn.ModuleList([
@@ -28,10 +29,11 @@ class MiniFCNet(nn.Module):
 
 class BasicCNN1Net(nn.Module):
     model_type = "BasicCNN1Net"
+    min_dims = (1, 16, 16)
+    dims = (1, 28, 28)
 
-    def __init__(self, image_dim, n_outputs, name="cnn_net"):
+    def __init__(self, image_dim, n_outputs):
         super().__init__()
-        self.filepath = Path(f"{name}.pth")
 
         image_channels = image_dim[0]
         fmap_dim = calc_feature_map_size(ip_dim=image_dim[1:],
@@ -52,10 +54,11 @@ class BasicCNN1Net(nn.Module):
 
 class BasicCNN2Net(nn.Module):
     model_type = "BasicCNN2Net"
+    min_dims = (1, 13, 13)
+    dims = (1, 28, 28)
 
-    def __init__(self, image_dim, n_outputs, name="wb_cnn_net"):
+    def __init__(self, image_dim, n_outputs):
         super(BasicCNN2Net, self).__init__()
-        self.filepath = Path(f"{name}.pth")
 
         image_channels = image_dim[0]
         fmap_dim = calc_feature_map_size(ip_dim=image_dim[1:],
@@ -75,8 +78,9 @@ class BasicCNN2Net(nn.Module):
         return forward_module_list(x, self.layers)
 
 
-def test():
-    net = BasicCNN2Net(image_dim=(3, 32, 32), n_outputs=10)
-    x = torch.randn(2, 3, 32, 32)
+if __name__ == "__main__":
+    side, ch = 13, 1
+    net = BasicCNN2Net(image_dim=(ch, side, side), n_outputs=10)
+    x = torch.randn(2, ch, side, side)
     y, act = net(x)
     print(y.size(), end="\n\n")

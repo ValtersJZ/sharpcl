@@ -6,8 +6,6 @@ def forward_module_list(x, layers, activation_to_collect=nn.Sigmoid):
     activations_ls = []
 
     for layer in layers:
-        # print(f"layer: {layer}")
-        # print(f"pre  x.size(): {x.size()}")
         x = layer(x)
         if isinstance(layer, activation_to_collect):
             activations_ls.append(torch.flatten(x, 1))
@@ -24,5 +22,5 @@ def calc_feature_map_size(ip_dim, kernel_pool_tuple_ls):
 
 
 if __name__ == "__main__":
-    pass
-    # print(calc_feature_map_size((32, 32), [(5,2), (5,2)]))
+    a = calc_feature_map_size(ip_dim=[34,36], kernel_pool_tuple_ls=[(5, 2), (5, 2), (5, 1)])
+    print(a)
