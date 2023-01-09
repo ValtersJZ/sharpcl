@@ -52,7 +52,7 @@ class DataMaker:
             self.train_set, self.val_set, self.test_set = self.make_dataset_sets(
                 model_min_dims[1:], dont_resize=False)
 
-    def make_loaders(self, batch_size, num_workers=3):
+    def make_loaders(self, batch_size, num_workers=1):
         train_loader = DataLoader(self.train_set, batch_size=batch_size,
                                   shuffle=True, num_workers=num_workers)
         val_loader = DataLoader(self.val_set, batch_size=batch_size,
