@@ -31,7 +31,7 @@ sweep_config = {
                     'min': 32,
                     'q': 8
                 },
-            'epochs': {'value': 2},
+            'epochs': {'value': 5},
 
             'optimizer.name': {'value': 'SGD'},
 
