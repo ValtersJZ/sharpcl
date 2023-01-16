@@ -33,7 +33,7 @@ sweep_config = {
                 },
             'epochs': {'value': 2},
 
-            'optimizer.name': {'values': ['ADAM', 'SGD']},
+            'optimizer.name': {'value': 'SGD'},
 
             'optimizer.params.lr':
                 {
