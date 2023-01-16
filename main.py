@@ -16,27 +16,29 @@ from state import State
 from utils import load_ckp, check_if_best_model, define_model_name, save_ckp, discounting_avg_fn, define_run_name
 from visualize import plot_activation_histogram
 
+use_wandb = True
+
 TRAIN_MODEL = True
 LOAD_CHECKPOINT = True
 
-config = {
+config_defaults = {
     "dataset": DatasetName.MNIST,
     "batch_size": 64,
-    "epochs": 2,
-    "model_type": ModelName.MiniFCNet,
+    "epochs": 10,
+    "model_type": ModelName.LeNet5,
     "run_name": "sharp",
     "optimizer": {
         "name": "SGD",
         "params": {
             "lr": 0.1,
-            "momentum": 0.9,
-            "weight_decay": 0.0001
+            # "momentum": 0.9,
+            # "weight_decay": 0.0001
         }
     },
     "use_sharpening": True,
     "max_sharpening_k": 0.1,
     "TRAIN_MODEL": TRAIN_MODEL,
-    "LOAD_CHECKPOINT": "LOAD_CHECKPOINT",
+    "LOAD_CHECKPOINT": LOAD_CHECKPOINT,
     # "optimizer": {
     #     "name": "ADAM",
     #     "params": {
@@ -45,8 +47,10 @@ config = {
 }
 
 
-def main(config):
-    wandb.init(project="wandb-test2", entity="cl-disco", config=config, name=define_run_name(config))
+def main(config=config_defaults):
+    if use_wandb:
+        wandb.init(project="wandb-test2", entity="cl-disco", config=config, name=define_run_name(config))
+        config = wandb.config
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -66,7 +70,8 @@ def main(config):
     # Model.
     net = get_model(config["model_type"],
                     image_dim=image_dim, n_outputs=n_outputs)
-    wandb.watch(net)
+    if use_wandb:
+        wandb.watch(net)
     net.to(device)
 
     model_dir_path = MODEL_PATH / Path(config["dataset"]) / Path(
@@ -85,7 +90,7 @@ def main(config):
     # add warmup, cool down, cyclic cosine scheduler, noise?, random restart?, ..?
     state = State()
 
-    if LOAD_CHECKPOINT:
+    if config['LOAD_CHECKPOINT']:
         if os.path.exists(model_dir_path / BEST_MODEL_DIR_NAME):
             model, optimizer, epoch_start, val_metrics, train_metrics = load_ckp(
                 model_dir_path, net, optimizer)
@@ -94,25 +99,25 @@ def main(config):
             if val_metrics is not None:
                 state.update_state(valid_obj_l_min=val_metrics["obj_loss_ep_avg"])
         else:
-            print("No checkpoint exists, proceeding to train a new model.")
+            print("Proceeding to train a new model.")
 
     if TRAIN_MODEL:
         train(net, device, train_loader, val_loader, optimizer, criterion, scheduler,
-              model_dir_path, state)
+              model_dir_path, state, config)
 
-    test(net, device, test_loader, classes, criterion)
+    test(net, device, test_loader, classes, criterion, config)
 
 
 def train(net, device, train_loader, val_loader, optimizer,
-          criterion, scheduler, model_ckp_dir_path, state):
+          criterion, scheduler, model_ckp_dir_path, state, config):
     start_epoch = state.epoch_start
     stop_epoch = start_epoch + config["epochs"]
 
     for epoch in range(start_epoch, stop_epoch):
         train_metrics = train_one_epoch(epoch, net, device, train_loader,
-                                        optimizer, criterion, start_epoch)
+                                        optimizer, criterion, start_epoch, config)
         if val_loader is not None:
-            val_metrics = validate(net, device, val_loader, criterion)
+            val_metrics = validate(net, device, val_loader, criterion, config)
         else:
             val_metrics = None
         save_state = {
@@ -134,7 +139,7 @@ def train(net, device, train_loader, val_loader, optimizer,
 
 
 def train_one_epoch(epoch, net, device, train_loader,
-                    optimizer, criterion, start_epoch):
+                    optimizer, criterion, start_epoch, config):
     log_running_loss = 0.0
     metrics_train_epoch = {"obj_loss_ep_avg": 0, "sharp_loss_ep_avg": 0}
     net.train()
@@ -158,12 +163,13 @@ def train_one_epoch(epoch, net, device, train_loader,
         sharp_loss = sharpening_loss(activations_ls, device)
         loss = objective_loss + sharpening_scaler * sharp_loss
 
-        wandb.log({
-            "loss_ob": objective_loss,
-            "loss_sharp": sharp_loss,
-            "sharpening_scaler": sharpening_scaler,
-            "loss": loss
-        })
+        if use_wandb:
+            wandb.log({
+                "loss_ob": objective_loss,
+                "loss_sharp": sharp_loss,
+                "sharpening_scaler": sharpening_scaler,
+                "loss": loss
+            })
 
         loss.backward()
         optimizer.step()
@@ -182,15 +188,12 @@ def train_one_epoch(epoch, net, device, train_loader,
                   f' objective loss: {objective_loss :.3f}'
                   f' sharpening loss: {sharp_loss :.3f}')
             log_running_loss = 0.0
-            print(f"loss = objective_loss + sharpening_scaler * sharp_loss ="
-                  f" {loss} = {objective_loss} + {sharpening_scaler}  * {sharp_loss}="
-                  f"{objective_loss} + {sharpening_scaler * sharp_loss}")
             # plot_activation_histogram(activations_ls, epoch)
 
     return metrics_train_epoch
 
 
-def validate(net, device, val_loader, criterion):
+def validate(net, device, val_loader, criterion, config):
     metrics_val = {"obj_loss_ep_avg": np.inf, "sharp_loss_ep_avg": np.inf, "accuracy": 0.0}
     total, correct = 0, 0
     objective_loss_ls, sharp_loss_ls = [], []
@@ -220,17 +223,18 @@ def validate(net, device, val_loader, criterion):
         metrics_val["sharp_loss_ep_avg"] = sharp_loss
         metrics_val["accuracy"] = val_accuracy = correct / total
 
-        wandb.log({
-            "val_loss_ob": objective_loss,
-            "val_loss_sharp": sharp_loss,
-            "val_accuracy": val_accuracy
-        })
+        if use_wandb:
+            wandb.log({
+                "val_loss_ob": objective_loss,
+                "val_loss_sharp": sharp_loss,
+                "val_accuracy": val_accuracy
+            })
 
     print(f"val: {correct} / {total} = {correct / total : 0.3f}")
     return metrics_val
 
 
-def test(net, device, test_loader, classes, criterion):
+def test(net, device, test_loader, classes, criterion, config):
     net.eval()
     # Test
     correct_pred = {classname: 0 for classname in classes}
@@ -271,13 +275,14 @@ def test(net, device, test_loader, classes, criterion):
     objective_loss = torch.dot(torch.Tensor(all_obj_losses), sample_weight_norm_l1).item()
     sharp_loss = torch.dot(torch.Tensor(all_sharp_losses), sample_weight_norm_l1).item()
 
-    wandb.log({
-        "test_accuracy": test_accuracy,
-        "test_loss_ob": objective_loss,
-        "test_loss_sharp": sharp_loss
-    })
+    if use_wandb:
+        wandb.log({
+            "test_accuracy": test_accuracy,
+            "test_loss_ob": objective_loss,
+            "test_loss_sharp": sharp_loss
+        })
 
 
 if __name__ == '__main__':
     torch.set_printoptions(linewidth=200)
-    main(config=config)
+    main(config=config_defaults)

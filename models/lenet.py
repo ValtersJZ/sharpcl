@@ -20,30 +20,37 @@ class LeNet5(nn.Module):
             image_dim[1:], kernel_pool_tuple_ls=[(5, 2), (5, 2), (5, 1)])
         cnn_activation_count = fmap_hw[0] * fmap_hw[1] * 120
 
-        self.feature_extractor = nn.ModuleList([
-            nn.Conv2d(image_channels, 6, (5, 5)),
+        self.feature_extractor = nn.Sequential(
+            nn.Conv2d(in_channels=image_channels, out_channels=6, kernel_size=(5, 5), stride=(1, 1)),
             nn.Tanh(),
             nn.AvgPool2d(kernel_size=2),
-            nn.Conv2d(6, 16, (5, 5)),
+            nn.Conv2d(in_channels=6, out_channels=16, kernel_size=(5, 5), stride=(1, 1)),
             nn.Tanh(),
-            nn.AvgPool2d(2),
-            nn.Conv2d(16, 120, (5, 5)),
+            nn.AvgPool2d(kernel_size=2),
+            nn.Conv2d(in_channels=16, out_channels=120, kernel_size=(5, 5), stride=(1, 1)),
             nn.Tanh()
-        ])
+        )
 
         self.classifier = nn.ModuleList([
             nn.Flatten(start_dim=1),
-            nn.Linear(in_features=cnn_activation_count, out_features=64),
+            nn.Linear(in_features=cnn_activation_count, out_features=84),
             nn.Sigmoid(),
-            nn.Linear(in_features=64, out_features=32),
-            nn.Sigmoid(),
-            nn.Linear(in_features=32, out_features=16),
-            nn.Sigmoid(),
-            nn.Linear(in_features=16, out_features=n_outputs)
+            nn.Linear(in_features=84, out_features=n_outputs),
         ])
 
+        # self.classifier = nn.ModuleList([
+        #     nn.Flatten(start_dim=1),
+        #     nn.Linear(in_features=cnn_activation_count, out_features=64),
+        #     nn.Sigmoid(),
+        #     nn.Linear(in_features=64, out_features=32),
+        #     nn.Sigmoid(),
+        #     nn.Linear(in_features=32, out_features=16),
+        #     nn.Sigmoid(),
+        #     nn.Linear(in_features=16, out_features=n_outputs)
+        # ])
+
     def forward(self, x):
-        x, _ = forward_module_list(x, self.feature_extractor)
+        x = self.feature_extractor(x)
         x, activation_ls = forward_module_list(x, self.classifier)
 
         # probs = F.softmax(x, dim=1)
