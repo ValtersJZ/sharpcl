@@ -13,9 +13,9 @@ sweep_config = {
     'parameters':
         {
             'dataset':
-                {'value': DatasetName.MNIST},
+                {'value': DatasetName.OxfordFlowers},
             'model_type':
-                {'value': ModelName.LeNet5},
+                {'value': ModelName.VGG11_PTR},
             'LOAD_CHECKPOINT': {'value': False},
             "use_sharpening": {'value': True},
             'max_sharpening_k':
