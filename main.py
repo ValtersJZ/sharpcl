@@ -112,7 +112,8 @@ def train(net, device, train_loader, val_loader, optimizer,
           criterion, scheduler, model_ckp_dir_path, state, config):
     start_epoch = state.epoch_start
     stop_epoch = start_epoch + config["epochs"]
-
+    best_state = None
+    best_name = None
     for epoch in range(start_epoch, stop_epoch):
         train_metrics = train_one_epoch(epoch, net, device, train_loader,
                                         optimizer, criterion, start_epoch, config)
@@ -120,22 +121,31 @@ def train(net, device, train_loader, val_loader, optimizer,
             val_metrics = validate(net, device, val_loader, criterion, config)
         else:
             val_metrics = None
-        save_state = {
+        current_state = {
             'epoch': epoch + 1,
             'val_metrics': val_metrics,
             'train_metrics': train_metrics,
             'state_dict': net.state_dict(),
             'optimizer': optimizer.state_dict(),
         }
+        if best_state is None:
+            best_state = current_state
+
         is_best = check_if_best_model(val_metrics, train_metrics,
                                       state.valid_obj_l_min)
         model_name = define_model_name(epoch, config,
                                        train_metrics, val_metrics)
-        save_ckp(save_state, is_best, model_ckp_dir_path,
-                 model_name, save_only_if_best=True)
+
+        if is_best:
+            best_state = current_state
+            best_name = model_name
+
         scheduler.step()
         if val_loader is not None:
             state.update_state(valid_obj_l_min=val_metrics["obj_loss_ep_avg"])
+
+    save_ckp(best_state, True, model_ckp_dir_path,
+             best_name, save_only_if_best=True)
 
 
 def train_one_epoch(epoch, net, device, train_loader,
