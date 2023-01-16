@@ -41,10 +41,22 @@ sweep_config = {
                     'max': 0.2,
                     'min': 0
                 },
+            'optimizer.params.momentum':
+                {
+                    'distribution': 'uniform',
+                    'max': 0.975,
+                    'min': 0.7
+                },
+            'optimizer.params.weight_decay':
+                {
+                    'distribution': 'log_uniform_values',
+                    'max': 0.01,
+                    'min': 0.00005
+                },
 
         }
 }
 
 if __name__ == '__main__':
     sweep_id = wandb.sweep(sweep_config, project="pytorch-sweeps-demo")
-    wandb.agent(sweep_id, main, count=5)
+    wandb.agent(sweep_id, main, count=50)

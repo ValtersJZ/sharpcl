@@ -31,8 +31,8 @@ config_defaults = {
         "name": "SGD",
         "params": {
             "lr": 0.1,
-            # "momentum": 0.9,
-            # "weight_decay": 0.0001
+            "momentum": 0.9,
+            "weight_decay": 0.0001
         }
     },
     "use_sharpening": True,
