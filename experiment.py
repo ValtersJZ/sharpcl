@@ -81,5 +81,5 @@ sweep_config = {
 }
 
 if __name__ == '__main__':
-    sweep_id = wandb.sweep(sweep_config, project="pytorch-sweeps-demo")
+    sweep_id = wandb.sweep(sweep_config, project="fc_mnist_opt_stage1")
     wandb.agent(sweep_id, main, count=50)
