@@ -14,7 +14,7 @@ class MiniFCNet(nn.Module):
 
     def __init__(self, image_dim, n_outputs, hidden_layer_widths=None):
         super().__init__()
-        print(f"hidden_layers_widths: {hidden_layer_widths}")
+        print(f"hidden_layer_widths: {hidden_layer_widths}")
 
         input_len = image_dim[0] * image_dim[1] * image_dim[2]
         hidden_layer_widths = [400, 400] if hidden_layer_widths is None else hidden_layer_widths
