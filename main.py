@@ -17,7 +17,7 @@ from sharpening import sharpening_loss_scaler, sharpening_loss
 from state import State
 from utils import load_ckp, check_if_best_model, define_model_name, save_ckp, discounting_avg_fn, define_run_name
 
-use_wandb = False
+use_wandb = True
 
 TRAIN_MODEL = True
 LOAD_CHECKPOINT = True
@@ -25,10 +25,15 @@ LOAD_CHECKPOINT = True
 config_defaults = {
     "dataset": DatasetName.MNIST,
     "batch_size": 256,
-    "epochs": 3,
+    "epochs": 5,
     "model_type": ModelName.MiniFCNet,
     "model_params": {
-        "hidden_layer_widths": [400, 400]
+        "hidden_layer_widths": {
+            "1": {"value": 400},
+            "2": {"value": 400},
+            "3": {"value": 20,
+                  "used": False}
+        }
     },
     "run_name": "Not_sharp",
     "optimizer": {
@@ -48,7 +53,7 @@ config_defaults = {
 
 def main(config=config_defaults):
     if use_wandb:
-        wandb.init(project="wandb-test2", entity="cl-disco", config=config, name=define_run_name(config))
+        wandb.init(project="wandb-FC_MNIST_opt1", entity="cl-disco", config=config, name=define_run_name(config))
         config = wandb.config
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')

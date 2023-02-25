@@ -7,17 +7,17 @@ from models import ModelName
 from main import main
 
 sweep_config = {
-    'method': 'random',
+    'method': 'bayes',
     'metric':
         {'goal': 'minimize', 'name': 'val_loss_ob'},
     'parameters':
         {
             'dataset':
-                {'value': DatasetName.OxfordFlowers},
+                {'value': DatasetName.MNIST},
             'model_type':
-                {'value': ModelName.VGG11_PTR},
+                {'value': ModelName.MiniFCNet},
             'LOAD_CHECKPOINT': {'value': False},
-            "use_sharpening": {'value': True},
+            "use_sharpening": {'value': False},
             'max_sharpening_k':
                 {
                     'distribution': 'uniform',
@@ -31,7 +31,7 @@ sweep_config = {
                     'min': 32,
                     'q': 8
                 },
-            'epochs': {'value': 5},
+            'epochs': {'value': 1},
 
             'optimizer.name': {'value': 'SGD'},
 
@@ -53,6 +53,29 @@ sweep_config = {
                     'max': 0.01,
                     'min': 0.00005
                 },
+            "model_params.hidden_layer_widths.1.value":
+                {
+                    'distribution': 'q_uniform',
+                    'max': 784,
+                    'min': 100
+                },
+            "model_params.hidden_layer_widths.2.value":
+                {
+                    'distribution': 'q_uniform',
+                    'max': 784,
+                    'min': 100
+                },
+            "model_params.hidden_layer_widths.3.value":
+                {
+                    'distribution': 'q_uniform',
+                    'max': 784,
+                    'min': 100
+                },
+            "model_params.hidden_layer_widths.3.used":
+                {
+                    'distribution': 'categorical',
+                    'values': [True, False],
+                }
 
         }
 }

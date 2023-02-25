@@ -14,6 +14,15 @@ class MiniFCNet(nn.Module):
 
     def __init__(self, image_dim, n_outputs, hidden_layer_widths=None):
         super().__init__()
+        use_3rd_hlayer = hidden_layer_widths["3"]["used"]
+        hidden_layer_widths = [
+            hidden_layer_widths["1"]["value"],
+            hidden_layer_widths["2"]["value"],
+            hidden_layer_widths["3"]["value"]]
+
+        if not use_3rd_hlayer:
+            hidden_layer_widths = hidden_layer_widths[:-1]
+
         print(f"hidden_layer_widths: {hidden_layer_widths}")
 
         input_len = image_dim[0] * image_dim[1] * image_dim[2]
@@ -23,7 +32,8 @@ class MiniFCNet(nn.Module):
         hidden_layer_widths = [width for width in hidden_layer_widths if width is not None]
         layer_widths = [input_len] + hidden_layer_widths + [n_outputs]
 
-        layer_pairs = [[nn.Linear(layer_widths[l], layer_widths[l + 1]), nn.Sigmoid()] for l in range(len(layer_widths) - 1)]
+        layer_pairs = [[nn.Linear(layer_widths[l], layer_widths[l + 1]), nn.Sigmoid()] for l in
+                       range(len(layer_widths) - 1)]
         layers = [l for pair in layer_pairs for l in pair][:-1]
         print(layers)
 

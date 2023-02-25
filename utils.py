@@ -78,13 +78,9 @@ def save_ckp(state, is_best, ckp_folder_path: Path, model_name: Path, save_only_
 
         best_fpath = best_ckp_folder / model_name
         if save_only_if_best:
-            print("should save now")
-            status = torch.save(state, best_fpath)
-            print("should be saved")
-            if shutil.which(best_fpath):
-                print(f"file WAS SAVED...................status {status}")
-            else:
-                print(f"file FAILED TO SAVE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!status {status}")
+            torch.save(state, best_fpath)
+            if not os.path.exists(best_fpath):
+                print(f"file FAILED TO SAVE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         else:
             shutil.copyfile(f_path, best_fpath)
 
