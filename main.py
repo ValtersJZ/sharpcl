@@ -9,7 +9,7 @@ import wandb
 
 from constants import MODEL_PATH, BEST_MODEL_DIR_NAME
 from data import DatasetName, DataMaker
-from models import ModelName, MODEL_MIN_DIMS, get_model, MODEL_DIMS
+from models import ModelName, get_model, MODEL_DIMS
 
 from optimizers import get_optimizer
 from sharpening import sharpening_loss_scaler, sharpening_loss
@@ -20,14 +20,14 @@ from utils import load_ckp, check_if_best_model, define_model_name, save_ckp, di
 use_wandb = False
 
 TRAIN_MODEL = True
-LOAD_CHECKPOINT = False
+LOAD_CHECKPOINT = True
 
 config_defaults = {
     "dataset": DatasetName.MNIST,
-    "batch_size": 4,
-    "epochs": 10,
-    "model_type": ModelName.VGG11_PTR,
-    "run_name": "not_sharp",
+    "batch_size": 64,
+    "epochs": 5,
+    "model_type": ModelName.MiniFCNet,
+    "run_name": "not_sharp wider fc",
     "optimizer": {
         "name": "SGD",
         "params": {

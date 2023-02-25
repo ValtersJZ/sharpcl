@@ -46,7 +46,7 @@ class DataMaker:
         self.train_set, self.val_set, self.test_set = self.make_dataset_sets(
             model_ip_dims[1:], dont_resize=False)
 
-        print(self.get_img_dims())
+        print(f"Single input dims: {self.get_img_dims()}.")
 
         # DIFFERENT LOGIC
         # self.train_set, self.val_set, self.test_set = self.make_dataset_sets(
