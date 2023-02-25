@@ -16,18 +16,18 @@ class MiniFCNet(nn.Module):
         super().__init__()
         input_len = image_dim[0] * image_dim[1] * image_dim[2]
 
-        # self.layers = nn.ModuleList([
-        #     nn.Flatten(start_dim=1),
-        #     nn.Linear(input_len, 120), nn.Sigmoid(),
-        #     nn.Linear(120, 120), nn.Sigmoid(),
-        #     nn.Linear(120, n_outputs)
-        # ])
         self.layers = nn.ModuleList([
             nn.Flatten(start_dim=1),
-            nn.Linear(input_len, 400), nn.Sigmoid(),
-            nn.Linear(400, 400), nn.Sigmoid(),
-            nn.Linear(400, n_outputs)
+            nn.Linear(input_len, 120), nn.Sigmoid(),
+            nn.Linear(120, 120), nn.Sigmoid(),
+            nn.Linear(120, n_outputs)
         ])
+        # self.layers = nn.ModuleList([
+        #     nn.Flatten(start_dim=1),
+        #     nn.Linear(input_len, 400), nn.Sigmoid(),
+        #     nn.Linear(400, 400), nn.Sigmoid(),
+        #     nn.Linear(400, n_outputs)
+        # ])
 
     def forward(self, x):
         return forward_module_list(x, self.layers)

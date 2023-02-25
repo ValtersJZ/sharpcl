@@ -24,10 +24,10 @@ LOAD_CHECKPOINT = True
 
 config_defaults = {
     "dataset": DatasetName.MNIST,
-    "batch_size": 64,
-    "epochs": 5,
+    "batch_size": 256,
+    "epochs": 10,
     "model_type": ModelName.MiniFCNet,
-    "run_name": "not_sharp wider fc",
+    "run_name": "not_sharp",
     "optimizer": {
         "name": "SGD",
         "params": {
