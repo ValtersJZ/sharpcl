@@ -1,13 +1,11 @@
-'''VGG11/13/16/19 in Pytorch.'''
-import math
 from pathlib import Path
 
 import torch
 import torch.nn as nn
 import torchvision
-import torchvision.transforms as transforms
 
 from models.utils import forward_module_list
+from models.classifier import get_trapezoid_classifier
 
 cfg = {
     'VGG11': [64, 'M', 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
@@ -21,7 +19,7 @@ class VGG(nn.Module):
     min_dims = (1, 32, 32)
     dims = (3, 224, 224)
 
-    def __init__(self, vgg_name, image_dim, n_outputs):
+    def __init__(self, vgg_name, image_dim, n_outputs, clf_hidden=1):
         super(VGG, self).__init__()
         self.filepath = Path(f"{vgg_name}.pth")
         self.vgg_name = vgg_name
@@ -114,7 +112,6 @@ class VGG11_Pretrained(nn.Module):
         self.features = vgg.features
 
         if channels != 3:
-            print(f"Converting the first layer kernels from 3 channel default to {channels} . . .")
             # self.features[0] = nn.Conv2d(channels, 64, (3, 3), padding=(1, 1))
             self.features[0].in_channels = 1
             if channels == 1:
@@ -123,25 +120,11 @@ class VGG11_Pretrained(nn.Module):
             else:
                 raise Exception(f"Network conversion not implemented for {channels} channels!")
 
+            print(f"Converted the first layer kernels from 3 channel default to {channels}.")
         for param in self.features.parameters():
             param.requires_grad = False
 
-        # if channels != 3:
-        #     self.features[0] = nn.Conv2d(
-        #         channels, 64, (3, 3), padding=(1, 1)
-        #     ).requires_grad_(requires_grad=True)
-
         self.avgpool = vgg.avgpool
-        # self.classifier = nn.ModuleList([
-        #     nn.Flatten(start_dim=1),
-        #     nn.Linear(25088, 2048, bias=True),
-        #     nn.Sigmoid(),
-        #     nn.Dropout(p=0.5, inplace=False),
-        #     nn.Linear(2048, 512, bias=True),
-        #     nn.Sigmoid(),
-        #     nn.Dropout(p=0.5, inplace=False),
-        #     nn.Linear(512, n_outputs, bias=True)
-        # ])
 
         self.classifier = nn.ModuleList([
             nn.Flatten(start_dim=1),
@@ -159,23 +142,6 @@ class VGG11_Pretrained(nn.Module):
 
 
 if __name__ == "__main__":
-    pass
-    # net = VGG("VGG11", (1, 28, 28), 10)
-    # print(net.get_cnn_activation_count(32))
-    #
-    # inputs = torch.randn((4, 1, 28, 28))
-    # outputs, activations_ls = net(inputs)
-    # from visualize import plot_activation_histogram
-    #
-    # plot_activation_histogram(activations_ls, 0)
-
-    # side, ch = 32, 3
-    #
-    # net = VGG19(image_dim=(ch, side, side), n_outputs=10)
-    # x = torch.randn(2, ch, side, side)
-    # y, act = net(x)
-    # print(y.size(), end="\n\n")
-
     net = VGG11_Pretrained([3, 32, 32], 10)
     # vgg = torchvision.models.vgg11(pretrained=True)
     vgg = torchvision.models.vgg11(weights='IMAGENET1K_V1')

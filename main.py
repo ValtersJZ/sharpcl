@@ -9,24 +9,25 @@ import wandb
 
 from constants import MODEL_PATH, BEST_MODEL_DIR_NAME
 from data import DatasetName, DataMaker
-from models import ModelName, MODEL_MIN_DIMS, get_model
+from models import ModelName, MODEL_MIN_DIMS, get_model, MODEL_DIMS
+
 from optimizers import get_optimizer
 from sharpening import sharpening_loss_scaler, sharpening_loss
+
 from state import State
 from utils import load_ckp, check_if_best_model, define_model_name, save_ckp, discounting_avg_fn, define_run_name
-from visualize import plot_activation_histogram
 
-use_wandb = True
+use_wandb = False
 
 TRAIN_MODEL = True
-LOAD_CHECKPOINT = True
+LOAD_CHECKPOINT = False
 
 config_defaults = {
     "dataset": DatasetName.MNIST,
-    "batch_size": 64,
+    "batch_size": 4,
     "epochs": 10,
-    "model_type": ModelName.LeNet5,
-    "run_name": "sharp",
+    "model_type": ModelName.VGG11_PTR,
+    "run_name": "not_sharp",
     "optimizer": {
         "name": "SGD",
         "params": {
@@ -35,15 +36,10 @@ config_defaults = {
             "weight_decay": 0.0001
         }
     },
-    "use_sharpening": True,
-    "max_sharpening_k": 0.1,
+    "use_sharpening": False,
+    # "max_sharpening_k": 0.1,
     "TRAIN_MODEL": TRAIN_MODEL,
-    "LOAD_CHECKPOINT": LOAD_CHECKPOINT,
-    # "optimizer": {
-    #     "name": "ADAM",
-    #     "params": {
-    #     }
-    # }
+    "LOAD_CHECKPOINT": LOAD_CHECKPOINT
 }
 
 
@@ -58,8 +54,10 @@ def main(config=config_defaults):
     print(f"dataset: {config['dataset']}, model: {config['model_type']}")
 
     # Data.
-    model_min_dims = MODEL_MIN_DIMS[config["model_type"]]
-    data_maker = DataMaker(config["dataset"], model_min_dims)
+    # model_min_ip_dims = MODEL_MIN_DIMS[config["model_type"]]
+    model_std_ip_dims = MODEL_DIMS[config["model_type"]]
+
+    data_maker = DataMaker(config["dataset"], model_std_ip_dims)
     image_dim = data_maker.get_img_dims()
     n_outputs = data_maker.get_num_outputs()
     classes = data_maker.get_classes()
@@ -160,14 +158,15 @@ def train_one_epoch(epoch, net, device, train_loader,
         outputs, activations_ls = net(inputs)
 
         # Loss
-        batches_in_loader = len(train_loader)
-        sharpening_scaler = sharpening_loss_scaler(
-            epoch - start_epoch, batch_idx, batches_in_loader,
-            config["batch_size"], config["epochs"],
-            max_coefficient=config["max_sharpening_k"]
-        )
         if not config["use_sharpening"]:
             sharpening_scaler = 0
+        else:
+            batches_in_loader = len(train_loader)
+            sharpening_scaler = sharpening_loss_scaler(
+                epoch - start_epoch, batch_idx, batches_in_loader,
+                config["batch_size"], config["epochs"],
+                max_coefficient=config["max_sharpening_k"]
+            )
 
         objective_loss = criterion(outputs, labels)
         sharp_loss = sharpening_loss(activations_ls, device)

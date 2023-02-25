@@ -1,18 +1,15 @@
-import math
-
 import torch
 from torch import nn
-from torchvision.transforms import transforms
 
 from models.utils import calc_feature_map_size, forward_module_list
-
+from models.classifier import get_trapezoid_classifier
 
 class LeNet5(nn.Module):
     model_type = "LeNet5"
     min_dims = (1, 32, 32)
     dims = (1, 32, 32)
 
-    def __init__(self, image_dim, n_outputs):
+    def __init__(self, image_dim, n_outputs, clf_hidden=1):
         super(LeNet5, self).__init__()
 
         image_channels = image_dim[0]
@@ -31,30 +28,21 @@ class LeNet5(nn.Module):
             nn.Tanh()
         )
 
-        self.classifier = nn.ModuleList([
-            nn.Flatten(start_dim=1),
-            nn.Linear(in_features=cnn_activation_count, out_features=84),
-            nn.Sigmoid(),
-            nn.Linear(in_features=84, out_features=n_outputs),
-        ])
-
         # self.classifier = nn.ModuleList([
         #     nn.Flatten(start_dim=1),
-        #     nn.Linear(in_features=cnn_activation_count, out_features=64),
+        #     nn.Linear(in_features=cnn_activation_count, out_features=84),
         #     nn.Sigmoid(),
-        #     nn.Linear(in_features=64, out_features=32),
-        #     nn.Sigmoid(),
-        #     nn.Linear(in_features=32, out_features=16),
-        #     nn.Sigmoid(),
-        #     nn.Linear(in_features=16, out_features=n_outputs)
+        #     nn.Linear(in_features=84, out_features=n_outputs),
         # ])
+        self.classifier = get_trapezoid_classifier(ip_size=cnn_activation_count,
+                                                   op_size=n_outputs,
+                                                   hidden_layers=clf_hidden)
 
     def forward(self, x):
-        x = self.feature_extractor(x)
-        x, activation_ls = forward_module_list(x, self.classifier)
+        h = self.feature_extractor(x)
+        y, activation_ls = forward_module_list(h, self.classifier)
 
-        # probs = F.softmax(x, dim=1)
-        return x, activation_ls
+        return y, activation_ls
 
 
 if __name__ == "__main__":

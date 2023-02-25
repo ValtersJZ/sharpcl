@@ -1,10 +1,8 @@
-import math
-
 import torch
 from torch import nn, Tensor
-from torchvision.transforms import transforms
 
-from models.utils import calc_feature_map_size, forward_module_list
+from models.utils import forward_module_list
+from models.classifier import get_trapezoid_classifier
 
 
 class AlexNet(nn.Module):
@@ -12,7 +10,7 @@ class AlexNet(nn.Module):
     min_dims = (1, 63, 63)
     dims = (3, 224, 224)
 
-    def __init__(self, image_dim, n_outputs) -> None:
+    def __init__(self, image_dim, n_outputs, clf_hidden=1) -> None:
         super(AlexNet, self).__init__()
         in_channels = image_dim[0]
 
@@ -36,27 +34,25 @@ class AlexNet(nn.Module):
 
         self.avgpool = nn.AdaptiveAvgPool2d((6, 6))
 
-        self.classifier = nn.Sequential(
-            nn.Dropout(0.5),
-            nn.Linear(256 * 6 * 6, 4096),
-            nn.ReLU(True),
-            nn.Dropout(0.5),
-            nn.Linear(4096, 4096),
-            nn.ReLU(True),
-            nn.Linear(4096, n_outputs),
-        )
+        # self.classifier = nn.Sequential(
+        #     nn.Dropout(0.5),
+        #     nn.Linear(256 * 6 * 6, 4096),
+        #     nn.ReLU(True),
+        #     nn.Dropout(0.5),
+        #     nn.Linear(4096, 4096),
+        #     nn.ReLU(True),
+        #     nn.Linear(4096, n_outputs),
+        # )
+        self.classifier = get_trapezoid_classifier(ip_size=256 * 6 * 6,
+                                                   op_size=n_outputs,
+                                                   hidden_layers=clf_hidden)
 
     def forward(self, x: Tensor) -> (Tensor, list):
-        return self._forward_impl(x), []
+        h = self.features(x)
+        h = self.avgpool(h)
+        y, activation_ls = forward_module_list(h, self.classifier)
 
-    #  Support torch.script function
-    def _forward_impl(self, x: Tensor) -> Tensor:
-        out = self.features(x)
-        out = self.avgpool(out)
-        out = torch.flatten(out, 1)
-        out = self.classifier(out)
-
-        return out
+        return y, activation_ls
 
 
 if __name__ == "__main__":

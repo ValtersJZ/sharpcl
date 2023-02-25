@@ -38,19 +38,26 @@ class CustomResize(transforms.Resize):
 
 
 class DataMaker:
-    def __init__(self, dataset, model_min_dims, validation_set_pc=0.05):
+    def __init__(self, dataset, model_ip_dims, validation_set_pc=0.05):
         self.dataset = dataset
-        self.model_min_dims = model_min_dims
+        self.model_ip_dims = model_ip_dims
         self.validation_set_pc = validation_set_pc
 
         self.train_set, self.val_set, self.test_set = self.make_dataset_sets(
-            model_min_dims[1:], dont_resize=True)
+            model_ip_dims[1:], dont_resize=False)
+
+        print(self.get_img_dims())
+
+        # DIFFERENT LOGIC
+        # self.train_set, self.val_set, self.test_set = self.make_dataset_sets(
+        #     model_ip_dims[1:], dont_resize=True)
 
         # Resize if image dims are smaller than min model dims.
-        if self.get_img_dims()[1] < model_min_dims[1]:
-            print("Resizing . . .")
-            self.train_set, self.val_set, self.test_set = self.make_dataset_sets(
-                model_min_dims[1:], dont_resize=False)
+        # if self.get_img_dims()[1] < model_ip_dims[1]:
+        #     print("Resizing . . .")
+        #     self.train_set, self.val_set, self.test_set = self.make_dataset_sets(
+        #         model_ip_dims[1:], dont_resize=False)
+
 
     def make_loaders(self, batch_size, num_workers=1):
         train_loader = DataLoader(self.train_set, batch_size=batch_size,
@@ -78,30 +85,30 @@ class DataMaker:
     def get_dataset_sets(self):
         return self.train_set, self.val_set, self.test_set
 
-    def make_dataset_sets(self, model_min_dims, dont_resize):
+    def make_dataset_sets(self, model_ip_dims, dont_resize):
         if self.dataset.upper() == DatasetName.CIFAR10:
             train_set, val_set, test_set = self._get_cifar10_sets(
-                model_min_dims, dont_resize)
+                model_ip_dims, dont_resize)
 
         elif self.dataset == DatasetName.CIFAR100:
             train_set, val_set, test_set = self._get_cifar100_sets(
-                model_min_dims, dont_resize)
+                model_ip_dims, dont_resize)
 
         elif self.dataset == DatasetName.MNIST:
             train_set, val_set, test_set = self._get_mnist_sets(
-                model_min_dims, dont_resize)
+                model_ip_dims, dont_resize)
 
         elif self.dataset == DatasetName.FashionMNIST:
             train_set, val_set, test_set = self._get_fashion_mnist_sets(
-                model_min_dims, dont_resize)
+                model_ip_dims, dont_resize)
 
         elif self.dataset == DatasetName.OxfordFlowers:
             train_set, val_set, test_set = self._get_oxford_flowers_sets(
-                model_min_dims, dont_resize)
+                model_ip_dims, dont_resize)
 
         elif self.dataset == DatasetName.Oxford3Pet:
             train_set, val_set, test_set = self._get_oxford_pet_sets(
-                model_min_dims, dont_resize)
+                model_ip_dims, dont_resize)
         else:
             raise Exception(f"Dataset {self.dataset} not available!")
 

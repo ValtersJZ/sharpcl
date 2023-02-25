@@ -1,4 +1,4 @@
-from models.simple_models import MiniFCNet, BasicCNN1Net, BasicCNN2Net
+from models.simple_models import MiniFCNet
 from models.vgg import VGG11, VGG13, VGG16, VGG19, VGG11_Pretrained
 from models.lenet import LeNet5
 from models.alexnet import AlexNet
@@ -6,8 +6,6 @@ from models.alexnet import AlexNet
 
 class ModelName:
     MiniFCNet = MiniFCNet.model_type
-    BasicCNN1Net = BasicCNN1Net.model_type
-    BasicCNN2Net = BasicCNN2Net.model_type
     VGG11 = VGG11.model_type
     VGG13 = VGG13.model_type
     VGG16 = VGG16.model_type
@@ -19,8 +17,6 @@ class ModelName:
 
 _MODEL_TYPES = {
     ModelName.MiniFCNet: MiniFCNet,
-    ModelName.BasicCNN1Net: BasicCNN1Net,
-    ModelName.BasicCNN2Net: BasicCNN2Net,
     ModelName.VGG11: VGG11,
     ModelName.VGG13: VGG13,
     ModelName.VGG16: VGG16,
