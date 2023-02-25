@@ -18,9 +18,9 @@ class MiniFCNet(nn.Module):
 
         self.layers = nn.ModuleList([
             nn.Flatten(start_dim=1),
-            nn.Linear(input_len, 120), nn.Sigmoid(),
-            nn.Linear(120, 120), nn.Sigmoid(),
-            nn.Linear(120, n_outputs)
+            nn.Linear(input_len, 700), nn.Sigmoid(),
+            nn.Linear(700, 500), nn.Sigmoid(),
+            nn.Linear(500, n_outputs)
         ])
         # self.layers = nn.ModuleList([
         #     nn.Flatten(start_dim=1),

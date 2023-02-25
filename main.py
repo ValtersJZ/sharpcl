@@ -27,7 +27,7 @@ config_defaults = {
     "batch_size": 256,
     "epochs": 10,
     "model_type": ModelName.MiniFCNet,
-    "run_name": "not_sharp",
+    "run_name": "Not_sharp",
     "optimizer": {
         "name": "SGD",
         "params": {
