@@ -25,8 +25,11 @@ LOAD_CHECKPOINT = True
 config_defaults = {
     "dataset": DatasetName.MNIST,
     "batch_size": 256,
-    "epochs": 10,
+    "epochs": 3,
     "model_type": ModelName.MiniFCNet,
+    "model_params": {
+        "hidden_layer_widths": [400, 400]
+    },
     "run_name": "Not_sharp",
     "optimizer": {
         "name": "SGD",
@@ -67,7 +70,7 @@ def main(config=config_defaults):
 
     # Model.
     net = get_model(config["model_type"],
-                    image_dim=image_dim, n_outputs=n_outputs)
+                    image_dim=image_dim, n_outputs=n_outputs, **config["model_params"])
     if use_wandb:
         wandb.watch(net)
     net.to(device)
