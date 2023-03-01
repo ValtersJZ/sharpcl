@@ -103,7 +103,7 @@ MNIST_FCNET_sharp_sweep_config = {
                     'min': 32,
                     'q': 8
                 },
-            'epochs': {'value': 3},
+            'epochs': {'value': 10},
 
             'optimizer.name': {'value': 'SGD'},
 
