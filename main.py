@@ -15,7 +15,8 @@ from optimizers import get_optimizer
 from sharpening import sharpening_loss_scaler, sharpening_loss
 
 from state import State
-from utils import load_ckp, check_if_best_model, define_model_name, save_ckp, discounting_avg_fn, define_run_name
+from utils import load_ckp, check_if_best_model, define_model_name, save_ckp, discounting_avg_fn, define_run_name, \
+    convert_nested
 
 use_wandb = True
 
@@ -51,18 +52,22 @@ config_defaults = {
 }
 
 
-def main(config=config_defaults):
+def main(config=None, project_name="dummy_project"):
     if use_wandb:
-        wandb.init(project="wandb-FC_MNIST_opt1", entity="cl-disco", config=config, name=define_run_name(config))
+        wandb.init(project=project_name, entity="cl-disco", config=config) #, name=define_run_name(config))
         config = wandb.config
+        config = convert_nested(config)
+        run_name = define_run_name(config)
+    else:
+        run_name = "run"
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     print(f"device: {device}")
     print(f"dataset: {config['dataset']}, model: {config['model_type']}")
+    print(f"config: {config}")
 
     # Data.
-    # model_min_ip_dims = MODEL_MIN_DIMS[config["model_type"]]
     model_std_ip_dims = MODEL_DIMS[config["model_type"]]
 
     data_maker = DataMaker(config["dataset"], model_std_ip_dims)
@@ -81,7 +86,7 @@ def main(config=config_defaults):
     net.to(device)
 
     model_dir_path = MODEL_PATH / Path(config["dataset"]) / Path(
-        config["model_type"]) / config["run_name"]
+        config["model_type"]) / run_name
 
     # Optimizer
     criterion = nn.CrossEntropyLoss()

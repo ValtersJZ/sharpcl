@@ -146,5 +146,30 @@ def define_run_name(config):
     return run_name
 
 
+def convert_nested(dct):
+    def insert(dct, lst):
+        for x in lst[:-2]:
+            dct[x] = dct = dct.get(x, dict())
+        dct.update({lst[-2]: lst[-1]})
+
+    # empty dict to store the result
+    result = dict()
+
+    # create an iterator of lists
+    # representing nested or hierarchical flow
+    lists = ([*k.split("."), v] for k, v in dct.items())
+
+    # insert each list into the result
+    for lst in lists:
+        insert(result, lst)
+    return result
+
+
 if __name__ == '__main__':
+    # from pprint import pprint
+    # from sweep_configs import MNIST_FCNET_sharp_sweep_config
+    #
+    # pprint(MNIST_FCNET_sharp_sweep_config["parameters"])
+    # print("-----------------------\n"*2)
+    # pprint(convert_nested(MNIST_FCNET_sharp_sweep_config["parameters"]))
     pass

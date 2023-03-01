@@ -11,5 +11,10 @@ from sweep_configs import MNIST_FCNET_sharp_sweep_config
 sweep_config = MNIST_FCNET_sharp_sweep_config
 
 if __name__ == '__main__':
-    sweep_id = wandb.sweep(sweep_config, project="fc_mnist_opt_stage1_SHARP")
-    wandb.agent(sweep_id, main, count=50)
+    project_name = "fc_mnist_opt_stage1_SHARP"
+    # project_name = "dummy"
+    sweep_id = wandb.sweep(sweep_config, project=project_name, entity="cl-disco")
+    wandb.agent(sweep_id, function=main, count=50)
+
+
+

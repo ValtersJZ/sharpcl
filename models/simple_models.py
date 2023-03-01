@@ -14,6 +14,7 @@ class MiniFCNet(nn.Module):
 
     def __init__(self, image_dim, n_outputs, hidden_layer_widths=None):
         super().__init__()
+        print(hidden_layer_widths)
         use_3rd_hlayer = hidden_layer_widths["3"]["used"]
         hidden_layer_widths = [
             hidden_layer_widths["1"]["value"],
